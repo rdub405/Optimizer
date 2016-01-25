@@ -1,0 +1,64 @@
+import csv
+import pandas as pd
+import requests
+import urllib2
+import bs4
+from bs4 import BeautifulSoup
+
+
+filename = 'current.csv'
+resultFile = "gamelog.csv"
+headerList = ["Player", "DATE",	"VS", "MIN", "FGM-A", "3PM-A", "FTM-A",	"REB", "AST", "STL", "BLK", "TO", "PF",	"PTS", "FD", "DK", "DS", "DD"]
+
+
+nbastatsurl =  'http://nbastartingfive.com/playerProfile.jsp?player='
+
+
+df = pd.read_csv(filename)
+
+df['Full Name']=df['First Name']+' '+df['Last Name']
+
+#exclude injuried players
+df['InjuryIndicator']=df['Injury Indicator'].fillna(0)
+for z in df.index:
+	if df.InjuryIndicator[z] !=0 :
+		df = df.drop(z)
+
+urlList = []
+#Pass in fullname to nbastatsurl
+with open (filename) as csvfile:
+    reader = csv.DictReader(csvfile)
+    for row in reader:
+       playerList = row['First Name'], row['Last Name']
+       urlParam =  playerList[0] + '%20' + playerList[1]
+       playerName = playerList[0] + ' ' + playerList[1]
+       url = (nbastatsurl + urlParam)
+       urlList.append((playerName, url))
+
+#Pull data from nbastatsurl for each player into csv file
+with open(resultFile, 'wb') as csvfile:
+    writer = csv.writer(csvfile)
+    writer.writerow(headerList)
+    for url in urlList:
+        print "Fetching data for " + url[0]
+        response = requests.get(url[1])
+        soup = BeautifulSoup(response.content, "lxml")
+        tables = soup.find_all("table")
+        print "Writing data for " + url[0]
+        for table in tables:
+            tbTitle = table.contents[1].text.strip()   #title of table
+            if tbTitle == (url[0] + " Versus Team Log") or tbTitle == (url[0] + " Last 10 Game Log"):
+                i = 0
+                for tbRow in table.children:
+                    if isinstance(tbRow, bs4.element.Tag):
+                        if i < 2:
+                            i += 1    #skipping first two table rows - title and header
+                            continue
+                        row = [url[0]]   #list of entries in a row initialised with the player name
+                        for cell in tbRow.children:
+                            if isinstance(cell, bs4.element.Tag):
+                                row.append(cell.text)
+                        writer.writerow(row)
+        print "****************************************************************"
+
+print "****************************DONE********************************"
