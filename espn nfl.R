@@ -1,3 +1,5 @@
+library(XML)
+
 burl = "http://games.espn.go.com/ffl/tools/projections?"
 
 espn_base_url <- burl
