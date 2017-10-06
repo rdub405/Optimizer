@@ -1,0 +1,26 @@
+#need to loop through the next page to the end 
+#the &offset=100 parameter is being used to loop through the next 100 rows
+
+library(rvest)
+url <- paste0("https://www.basketball-reference.com/play-index/pgl_finder.cgi?request=1&match=game&year_min=2017&year_max=2017&is_playoffs=N&age_min=0&age_max=99&season_start=1&season_end=-1&pos_is_g=Y&pos_is_gf=Y&pos_is_f=Y&pos_is_fg=Y&pos_is_fc=Y&pos_is_c=Y&pos_is_cf=Y&order_by=player")
+
+html <- xml2::read_html(url)
+node <- rvest::html_node(html, "table")
+table <- rvest::html_table(node, header = TRUE)
+test <- parse_season_table(table)
+
+
+duplicated_header_rows <- table$Rk == "Rk"
+table <- table[!duplicated_header_rows, ]
+converted <- lapply(table, maybe_as_numeric)
+converted <- lapply(converted, empty_string_to_na)
+df <- as.data.frame(converted, stringsAsFactors = FALSE)
+df <- df[, !(names(df) == "Rk")] # remove "Rank" column
+names(df) <- gsub("\\.", "_pct", names(df))
+names(df) <- gsub("X2", "two_", names(df))
+names(df) <- gsub("X3", "three_", names(df))
+names(df) <- tolower(names(df))
+names(df)[6]<-"H_A"
+names(df)[8]<-"W_L"
+
+df
